@@ -1,5 +1,6 @@
 const express = require('express');
 const fs = require('fs');
+const path = require('path');
 const { v4: uuidv4 } = require('uuid');
 
 const app = express();
@@ -10,22 +11,53 @@ app.use(express.json());
 
 // Routes
 app.get('/', (req, res) => {
-  res.sendFile(__dirname + '/public/index.html');
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 app.get('/notes', (req, res) => {
-  res.sendFile(__dirname + '/public/notes.html');
+  res.sendFile(path.join(__dirname, 'public', 'notes.html'));
 });
 
 // API Routes
 app.get('/api/notes', (req, res) => {
-  // Read data from db.json and return as JSON
+  fs.readFile(path.join(__dirname, 'db.json'), 'utf8', (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
+      return;
+    }
+
+    const notes = JSON.parse(data);
+    res.json(notes);
+  });
 });
 
 app.post('/api/notes', (req, res) => {
-  // Receive new note data, add to db.json, and return the new note
+  const newNote = req.body;
+  fs.readFile(path.join(__dirname, 'db.json'), 'utf8', (err, data) => {
+    if (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Internal server error' });
+      return;
+    }
+
+    const notes = JSON.parse(data);
+    newNote.id = uuidv4();
+    notes.push(newNote);
+
+    fs.writeFile(path.join(__dirname, 'db.json'), JSON.stringify(notes, null, 2), (err) => {
+      if (err) {
+        console.error(err);
+        res.status(500).json({ error: 'Internal server error' });
+        return;
+      }
+
+      res.json(newNote);
+    });
+  });
 });
 
 // Start the server
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
+});
